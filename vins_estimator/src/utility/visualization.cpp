@@ -30,12 +30,33 @@ static double sum_of_path = 0;
 static Vector3d last_path(0.0, 0.0, 0.0);
 
 size_t pub_counter = 0;
+string readTxt(string filename,int line){
+    ifstream text;
+    text.open(filename,ios::in);
+    if(!text){
+        string xiaoxi = "no graph_pose document!";
+        return xiaoxi;
+    }
+    else{
+        vector<string> strVec;
+        while(!text.eof()){
+            string inbuf;
+            getline(text,inbuf,'\n');
+            strVec.push_back(inbuf);
+        }
+        text.close();
+        return strVec[line - 1];
+    }
 
+}
 void registerPub(ros::NodeHandle &n)
 {
     pub_latest_odometry = n.advertise<nav_msgs::Odometry>("imu_propagate", 1000);
     pub_path = n.advertise<nav_msgs::Path>("path", 1000);
     pub_odometry = n.advertise<nav_msgs::Odometry>("odometry", 1000);
+    //广播历史帧
+    pub_saved_keyframe = n.advertise<nav_msgs::Odometry>("saved_keyframe", 100);
+
     pub_point_cloud = n.advertise<sensor_msgs::PointCloud>("point_cloud", 1000);
     pub_margin_cloud = n.advertise<sensor_msgs::PointCloud>("margin_cloud", 1000);
     pub_key_poses = n.advertise<visualization_msgs::Marker>("key_poses", 1000);
@@ -152,6 +173,26 @@ void pubOdometry(const Estimator &estimator, const std_msgs::Header &header)
         path.poses.push_back(pose_stamped);
         pub_path.publish(path);
 
+//        Vector3d correct_t;
+//        Vector3d correct_v;
+//        Quaterniond correct_q;
+//        correct_t = estimator.drift_correct_r * estimator.Ps[WINDOW_SIZE] + estimator.drift_correct_t;
+//        correct_q = estimator.drift_correct_r * estimator.Rs[WINDOW_SIZE];
+//        odometry.pose.pose.position.x = correct_t.x();
+//        odometry.pose.pose.position.y = correct_t.y();
+//        odometry.pose.pose.position.z = correct_t.z();
+//        odometry.pose.pose.orientation.x = correct_q.x();
+//        odometry.pose.pose.orientation.y = correct_q.y();
+//        odometry.pose.pose.orientation.z = correct_q.z();
+//        odometry.pose.pose.orientation.w = correct_q.w();
+//        printf(" the current keyframe pose:%f %f %f %f %f %f %f\n", correct_t.x(), correct_t.y(), correct_t.z(), correct_q.w(), correct_q.x(), correct_q.y(), correct_q.z());
+//        pub_odometry.publish(odometry);
+//        pose_stamped.pose = odometry.pose.pose;
+//        relo_path.header = header;
+//        relo_path.header.frame_id = "world";
+//        relo_path.poses.push_back(pose_stamped);
+//        pub_relo_path.publish(relo_path);
+
         // write result to file
         ofstream foutC(VINS_RESULT_PATH, ios::app);
         foutC.setf(ios::fixed, ios::floatfield);
@@ -172,6 +213,60 @@ void pubOdometry(const Estimator &estimator, const std_msgs::Header &header)
         Eigen::Vector3d tmp_T = estimator.Ps[WINDOW_SIZE];
         printf("time: %f, t: %f %f %f q: %f %f %f %f \n", header.stamp.toSec(), tmp_T.x(), tmp_T.y(), tmp_T.z(),
                                                           tmp_Q.w(), tmp_Q.x(), tmp_Q.y(), tmp_Q.z());
+
+
+        //读取保存的keyframe文件的第lines行，然后计算差值
+        string strVec1;
+        string file_path1 =  "/home/nvidia/mynt_vins/1/pose_graph.txt";
+        strVec1 =readTxt(file_path1,lines);
+        if(strVec1=="no graph_pose document!"){
+            cout<<"no graph_pose document!"<<endl;
+        }
+        else{
+            // cout<<"the "<<lines<<" th keyframe pose:"<<strVec1<<endl;
+            string index,timestamp,x,y,z,px,py,pz,tw,tx,ty,tz,rw,rx,ry,rz,loopindex,info1,info2,info3,info4,info5,info6,info7,info8,size;
+            istringstream is(strVec1);
+            is>>index>>timestamp>>x>>y>>z>>px>>py>>pz>>tw>>tx>>ty>>tz>>rw>>rx>>ry>>rz>>loopindex>>info1>>info2>>info3>>info4>>info5>>info6>>info7>>info8>>size;
+            cout<<"the "<<lines<<" th keyframe pose:"<<px<<","<<py<<","<<pz<<","<<rw<<","<<rx<<","<<ry<<","<<rz<<endl;
+            float Px = atof(px.c_str());
+            float Py = atof(py.c_str());
+            float Pz = atof(pz.c_str());
+            float Rw = atof(rw.c_str());
+            float Rx = atof(rx.c_str());
+            float Ry = atof(ry.c_str());
+            float Rz = atof(rz.c_str());
+            nav_msgs::Odometry odometry;
+            odometry.header = header;
+            odometry.header.frame_id = "saved";
+            odometry.pose.pose.position.x = Px;
+            odometry.pose.pose.position.y = Py;
+            odometry.pose.pose.position.z = Pz;
+            odometry.pose.pose.orientation.x = Rx;
+            odometry.pose.pose.orientation.y = Ry;
+            odometry.pose.pose.orientation.z = Rz;
+            odometry.pose.pose.orientation.w = Rw;
+//            cout<<Px<<","<<Py<<","<<Pz<<","<<Rw<<","<<Rx<<","<<Ry<<","<<Rz<<endl;
+            float deltapx = Px - correct_t.x();
+            float deltapy = Py - correct_t.y();
+            float deltapz = Pz - correct_t.z();
+            float deltarw = Rw - correct_q.w();
+            float deltarx = Rx - correct_q.x();
+            float deltary = Ry - correct_q.y();
+            float deltarz = Rz - correct_q.z();
+            cout<<"the delta of current and destination: "<<deltapx<<","<<deltapy<<","<<deltapz<<","<<deltarw<<","<<deltarx<<","<<deltary<<","<<deltarz<<endl;
+
+            //epsilon取决对重新回到之前keyframe的灵敏度
+            float epsilon = 0.2;
+            if (abs(deltapx)<epsilon &&abs(deltapy)<epsilon &&abs(deltapz)<epsilon &&!px.empty() &&lines != 0){
+                lines +=1;
+            }
+            if(px.empty()){
+                lines -=1;
+            }
+
+            //发布历史位姿信息
+            pub_saved_keyframe.publish(odometry);
+        }
     }
 }
 
