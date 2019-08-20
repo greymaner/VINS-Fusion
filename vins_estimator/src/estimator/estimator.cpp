@@ -474,7 +474,7 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
 
         // stereo + IMU initilization
         if(STEREO && USE_IMU)
-        {
+        { 
             f_manager.initFramePoseByPnP(frame_count, Ps, Rs, tic, ric);
             f_manager.triangulate(frame_count, Ps, Rs, tic, ric);
             if (frame_count == WINDOW_SIZE)
@@ -946,11 +946,11 @@ void Estimator::double2vector()
 
 bool Estimator::failureDetection()
 {
-    return false;
+    // return false;
     if (f_manager.last_track_num < 2)
     {
         ROS_INFO(" little feature %d", f_manager.last_track_num);
-        //return true;
+        return true;
     }
     if (Bas[WINDOW_SIZE].norm() > 2.5)
     {
@@ -962,23 +962,21 @@ bool Estimator::failureDetection()
         ROS_INFO(" big IMU gyr bias estimation %f", Bgs[WINDOW_SIZE].norm());
         return true;
     }
-    /*
     if (tic(0) > 1)
     {
         ROS_INFO(" big extri param estimation %d", tic(0) > 1);
         return true;
     }
-    */
     Vector3d tmp_P = Ps[WINDOW_SIZE];
     if ((tmp_P - last_P).norm() > 5)
     {
-        //ROS_INFO(" big translation");
-        //return true;
+        ROS_INFO(" big translation");
+        return true;
     }
     if (abs(tmp_P.z() - last_P.z()) > 1)
     {
-        //ROS_INFO(" big z translation");
-        //return true; 
+        ROS_INFO(" big z translation");
+        return true; 
     }
     Matrix3d tmp_R = Rs[WINDOW_SIZE];
     Matrix3d delta_R = tmp_R.transpose() * last_R;
@@ -988,7 +986,7 @@ bool Estimator::failureDetection()
     if (delta_angle > 50)
     {
         ROS_INFO(" big delta_angle ");
-        //return true;
+        return true;
     }
     return false;
 }
@@ -1071,7 +1069,7 @@ void Estimator::optimization()
         {
             imu_j++;
             if (imu_i != imu_j)
-            {
+            { 
                 Vector3d pts_j = it_per_frame.point;
                 ProjectionTwoFrameOneCamFactor *f_td = new ProjectionTwoFrameOneCamFactor(pts_i, pts_j, it_per_id.feature_per_frame[0].velocity, it_per_frame.velocity,
                                                                  it_per_id.feature_per_frame[0].cur_td, it_per_frame.cur_td);

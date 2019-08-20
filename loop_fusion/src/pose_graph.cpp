@@ -36,7 +36,7 @@ PoseGraph::~PoseGraph()
 
 void PoseGraph::registerPub(ros::NodeHandle &n)
 {
-    pub_pg_path = n.advertise<nav_msgs::Path>("pose_graph_path", 1000);
+    pub_pg_path = n.advertise<nav_msgs::Path>("pose_graph_path", 1000); 
     pub_base_path = n.advertise<nav_msgs::Path>("base_path", 1000);
     pub_pose_graph = n.advertise<visualization_msgs::MarkerArray>("pose_graph", 1000);
     for (int i = 1; i < 10; i++)
@@ -960,7 +960,7 @@ void PoseGraph::loadPoseGraph()
     pFile = fopen (file_path.c_str(),"r");
     if (pFile == NULL)
     {
-        printf("lode previous pose graph error: wrong previous pose graph path or no previous pose graph \n the system will start with new pose graph \n");
+        printf("load previous pose graph error: wrong previous pose graph path or no previous pose graph \n the system will start with new pose graph \n");
         return;
     }
     int index;
@@ -1077,7 +1077,7 @@ void PoseGraph::publish()
         //if (sequence_loop[i] == true || i == base_sequence)
         if (1 || i == base_sequence)
         {
-            pub_pg_path.publish(path[i]);
+            pub_pg_path.publish(path[i]); 
             pub_path[i].publish(path[i]);
             posegraph_visualization->publish_by(pub_pose_graph, path[sequence_cnt].header);
         }
