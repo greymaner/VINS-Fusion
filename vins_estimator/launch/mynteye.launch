@@ -1,25 +1,10 @@
+<?xml version="1.0"?>
 <launch>
-    <arg name="config_path" default = "$(find vins_estimator)/../config/mynteye/mynteye_config.yaml" />
-      <arg name="vins_path" default = "$(find vins_estimator)/../config/../" />
+    <arg name="config_file" default="$(find vins)/../config/mynteye/mynteye_stereo_imu_config.yaml" />
 
-    <node name="global_fusion" pkg="global_fusion" type="global_fusion" output="log">
-        <param name="config_file" type="string" value="$(arg config_path)" />
-        <param name="vins_folder" type="string" value="$(arg vins_path)" />
+    <node name="vins_estimator" pkg="vins" type="vins_s_node" output="screen" >
+      <param name="config_file" value="$(arg config_file)" />
     </node>
 
-    <node name="vins_estimator" pkg="vins_estimator" type="vins_estimator" output="screen">
-       <param name="config_file" type="string" value="$(arg config_path)" />
-       <param name="vins_folder" type="string" value="$(arg vins_path)" />
-    </node>
-
-   <node name="loop_fusion" pkg="loop_fusion" type="loop_fusion" output="screen">
-        <param name="config_file" type="string" value="$(arg config_path)" />
-        <param name="visualization_shift_x" type="int" value="0" />
-        <param name="visualization_shift_y" type="int" value="0" />
-        <param name="skip_cnt" type="int" value="0" />
-        <param name="skip_dis" type="double" value="0" />
-    </node>
-
-    <node name="rvizvisualisation" pkg="rviz" type="rviz" output="log" args="-d $(find vins_estimator)/../config/vins_rviz_config.rviz" />
-
+    <node name="rvizvisualisation" pkg="rviz" type="rviz" output="log" args="-d $(find vins)/../config/vins_rviz_config.rviz" />
 </launch>
